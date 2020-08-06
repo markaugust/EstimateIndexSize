@@ -4,25 +4,40 @@ EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[sp_EstimateNonclus
 END
 GO
 ALTER PROCEDURE [dbo].[sp_EstimateNonclusteredIndexSize]
-    @databaseName nvarchar(max) = NULL, /*Defaults to current DB if not specified*/
-    @schemaName nvarchar(max) = NULL, /*Required - will fail if not specified*/
-    @tableName nvarchar(max) = NULL, /*Required - will fail if not specified*/
-    @keyColumns nvarchar(max) = NULL, /*Required - will fail if not specified*/
+    @databaseName nvarchar(max) = NULL,
+    @schemaName nvarchar(max) = NULL,
+    @tableName nvarchar(max) = NULL,
+    @keyColumns nvarchar(max) = NULL,
     @includeColumns nvarchar(max) = NULL,
-    @isUniqueIndex bit = 0, /*Defaults to non-unique*/
-    @fillFactor int = NULL, /*If NULL will get system default fill factor*/
-    @debug bit = 0 /*If set to 1 then will display all variables used in calculation to verify against Microsoft documentation*/
+    @isUniqueIndex bit = 0,
+    @fillFactor int = NULL,
+    @debug bit = 0
 
 AS
 
-------------------------------------------------------------------------------------------------
---// Author:  Mark Earleywine                                                               //--
---// GitHub:  https://github.com/markaugust/EstimateIndexSize                               //--
---// Version: 2020-08-06                                                                    //--
-
---// ESTIMATING THE SIZE OF A NON-CLUSTERED INDEX FOR ROW-STORE TABLES
---// https://docs.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-nonclustered-index?view=sql-server-ver15
-------------------------------------------------------------------------------------------------
+--==================================================================
+-- Author:  Mark Earleywine
+-- GitHub:  https://github.com/markaugust/EstimateIndexSize
+-- Version: 2020-08-06
+-- Desciption: This will give an estimate of how large a Nonclustered Index will be
+--
+-- Source of Calculations: https://docs.microsoft.com/en-us/sql/relational-databases/databases/estimate-the-size-of-a-nonclustered-index?view=sql-server-ver15
+-- Parameters:
+--      @databaseName - Database the index will be created in - Defaults to current DB context
+--      @schemaName - Required - Schema the index will be created in
+--      @tableName - Required - Table the index will be created in
+--      @keyColumns - Required - Comma Separated List of Key Columns to be used
+--      @includeColumns - Comma Separated List of Included Columns to be used
+--      @isUniqueIndex - Is the index you are creating a Unique Index (e.g. CREATE UNIQUE NONCLUSTERED INDEX...) - Defaults to 0
+--      @fillFactor - Fill Factor of the Index - If NULL will get system default fill factor - Defaults to NULL
+--      @debug bit - If set to 1 then will display all variables used in calculation to verify against Microsoft documentation
+--
+-- Notes:
+--      The parameters databaseName, schemaName, tableName, keyColumns, and includedColumns can be listed with or without '[]', as seen in the example
+--      In my testing, all sizes have currently been slightly over-estimated
+-- Example:
+--      EXECUTE [dbo].[sp_EstimateNonclusteredIndexSize] @databaseName = 'StackOverflow2010', @schemaName = 'dbo', @tableName = 'Users', @keyColumns = 'LastAccessDate, [Id]', includeColumns = 'Age, [DisplayName], Location'
+--==================================================================
 
 SET NOCOUNT ON
 --------------------------------
